@@ -65,6 +65,33 @@ public class PlayerMovement : MonoBehaviour
         }
 
         isRolling = false;
+
+        // Après le mouvement, vérifier si la face inférieure (centre bas) est sur une tuile Goal.
+        // Calculer le point 'face' : position XZ du transform, avec Y au dessous du renderer (au contact du sol).
+        var rend = GetComponent<Renderer>();
+        if (rend != null && LevelManager.I != null)
+        {
+            Bounds b = rend.bounds;
+
+            // point au centre bas (foot point)
+            Vector3 footPoint = new Vector3(transform.position.x, b.min.y, transform.position.z);
+
+            // Déterminer si le bloc est 'debout' : empreinte XZ ~ 1x1 (face) et hauteur Y supérieure
+            // Ajuster tolérance si nécessaire selon les dimensions réelles du modèle
+            const float sizeTarget = 1f;
+            const float tol = 0.3f; // tolérance pour X et Z
+            bool isFootprint1x1 = Mathf.Abs(b.size.x - sizeTarget) < tol && Mathf.Abs(b.size.z - sizeTarget) < tol;
+            bool isTall = b.size.y > 1.05f; // assez haut pour être debout
+
+            if (isFootprint1x1 && isTall)
+            {
+                Tile tileUnder = LevelManager.I.GetTileAtWorldPoint(footPoint);
+                if (tileUnder != null && tileUnder.type == TileType.Goal)
+                {
+                    LevelManager.I.Win();
+                }
+            }
+        }
     }
 
     IEnumerator AnimateMove(Vector3 startPos, Vector3 endPos, float duration)
