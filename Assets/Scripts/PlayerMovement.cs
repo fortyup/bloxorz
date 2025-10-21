@@ -4,11 +4,11 @@ using System.Collections;
 
 public class PlayerMovement : MonoBehaviour
 {
-    private float rollSpeed = 1f; // Vitesse d’animation
+    private float rollSpeed = 1f; // Vitesse d'animation
     private bool isRolling = false;
     private Vector3 moveDir;
 
-    void OnMove(InputValue movementValue)
+    public void OnMove(InputValue movementValue)
     {
         if (isRolling) return;
 
@@ -23,29 +23,50 @@ public class PlayerMovement : MonoBehaviour
     {
         isRolling = true;
 
-        Vector3 anchor = transform.position + (Vector3.down + dir) * 0.5f;
-        Vector3 axis = Vector3.Cross(Vector3.up, dir);
+        // Calculer les dimensions réelles du rectangle en fonction de son orientation actuelle
+        Bounds bounds = GetComponent<Renderer>().bounds;
+        float widthX = bounds.size.x; // Dimension réelle sur l'axe X
+        float heightY = bounds.size.y; // Dimension réelle sur l'axe Y (hauteur)
+        float depthZ = bounds.size.z; // Dimension réelle sur l'axe Z
 
-        for (int i = 0; i < 90; i++)
+        Debug.Log($"Dimensions réelles - X: {widthX}, Y: {heightY}, Z: {depthZ}");
+
+        // Déterminer la distance de déplacement et l'axe de rotation
+        Vector3 rotationAxis;
+        Vector3 anchorOffset;
+
+        // Calculer le pivot en fonction de la direction du mouvement
+        if (Mathf.Abs(dir.x) > 0) // Déplacement gauche/droite
         {
-            transform.RotateAround(anchor, axis, 1f * rollSpeed);
-            yield return null;
+            rotationAxis = Vector3.forward * -Mathf.Sign(dir.x);
+            // Le pivot est à l'arête latérale : décalage en X et descente en Y
+            anchorOffset = new Vector3(widthX / 2 * Mathf.Sign(dir.x), -heightY / 2, 0);
+        }
+        else // Déplacement avant/arrière
+        {
+            rotationAxis = Vector3.right * Mathf.Sign(dir.z);
+            // Le pivot est à l'arête avant/arrière : décalage en Z et descente en Y
+            anchorOffset = new Vector3(0, -heightY / 2, depthZ / 2 * Mathf.Sign(dir.z));
         }
 
-        // Corrige les imprécisions de position ET de rotation
-        transform.position = new Vector3(
-            Mathf.Round(transform.position.x),
-            transform.position.y,
-            Mathf.Round(transform.position.z)
-        );
-        
-        // Corrige les imprécisions de rotation
-        Vector3 eulerAngles = transform.eulerAngles;
-        transform.eulerAngles = new Vector3(
-            Mathf.Round(eulerAngles.x / 90f) * 90f,
-            Mathf.Round(eulerAngles.y / 90f) * 90f,
-            Mathf.Round(eulerAngles.z / 90f) * 90f
-        );
+        // Point de pivot (arête au sol)
+        Vector3 anchor = transform.position + anchorOffset;
+
+        // Animation de rotation
+        float remainingAngle = 90f;
+
+        while (remainingAngle > 0)
+        {
+            float deltaAngle = Mathf.Min(remainingAngle, rollSpeed * 90f);
+            transform.RotateAround(anchor, rotationAxis, deltaAngle);
+
+            remainingAngle -= deltaAngle;
+            
+            // Afficher les coordonnées du player à chaque frame
+            Debug.Log($"Position du player: {transform.position}");
+
+            yield return null;
+        }
 
         isRolling = false;
     }
