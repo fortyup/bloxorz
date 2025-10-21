@@ -17,6 +17,7 @@ public class PlayerMovement : MonoBehaviour
 
         if (moveDir != Vector3.zero)
             StartCoroutine(Roll(moveDir));
+
     }
 
     private IEnumerator Roll(Vector3 dir)
@@ -28,8 +29,6 @@ public class PlayerMovement : MonoBehaviour
         float widthX = bounds.size.x; // Dimension réelle sur l'axe X
         float heightY = bounds.size.y; // Dimension réelle sur l'axe Y (hauteur)
         float depthZ = bounds.size.z; // Dimension réelle sur l'axe Z
-
-        Debug.Log($"Dimensions réelles - X: {widthX}, Y: {heightY}, Z: {depthZ}");
 
         // Déterminer la distance de déplacement et l'axe de rotation
         Vector3 rotationAxis;
@@ -61,13 +60,22 @@ public class PlayerMovement : MonoBehaviour
             transform.RotateAround(anchor, rotationAxis, deltaAngle);
 
             remainingAngle -= deltaAngle;
-            
-            // Afficher les coordonnées du player à chaque frame
-            Debug.Log($"Position du player: {transform.position}");
 
             yield return null;
         }
 
         isRolling = false;
+    }
+
+    IEnumerator AnimateMove(Vector3 startPos, Vector3 endPos, float duration)
+    {
+        float elapsed = 0f;
+        while (elapsed < duration)
+        {
+            transform.position = Vector3.Lerp(startPos, endPos, elapsed / duration);
+            elapsed += Time.deltaTime;
+            yield return null;
+        }
+        transform.position = endPos;
     }
 }
