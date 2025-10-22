@@ -37,15 +37,29 @@ public class Tile : MonoBehaviour
 
         if (meshRenderer != null)
         {
-            // En mode édition, modifier sharedMaterial pour éviter instanciation inutile
-            if (!Application.isPlaying)
-                meshRenderer.sharedMaterial.color = c;
-            else
-                meshRenderer.material.color = c;
+            // Use MaterialPropertyBlock to change color without instantiating or modifying the material asset.
+            // This is safe for prefabs and works in edit mode.
+            try
+            {
+                var mpb = new MaterialPropertyBlock();
+                meshRenderer.GetPropertyBlock(mpb);
+                // Common color property names: _Color (Standard), _BaseColor (URP/HDRP)
+                mpb.SetColor("_Color", c);
+                mpb.SetColor("_BaseColor", c);
+                meshRenderer.SetPropertyBlock(mpb);
+            }
+            catch (System.Exception)
+            {
+                // As a last resort (very old/edge cases), try to set sharedMaterial if available and not null.
+                if (meshRenderer.sharedMaterial != null)
+                {
+                    meshRenderer.sharedMaterial.color = c;
+                }
+            }
         }
     }
 
-    private void UpdateVisuals()
+    public void UpdateVisuals()
     {
         // Récupérer automatiquement les composants si non fournis
         if (spriteRenderer == null)
@@ -64,6 +78,12 @@ public class Tile : MonoBehaviour
     private void OnValidate()
     {
         // Mise à jour dans l'éditeur quand on change le type
+        UpdateVisuals();
+    }
+    
+    // Public wrapper for external callers (LevelManager, editors) to refresh visuals
+    public void RefreshVisuals()
+    {
         UpdateVisuals();
     }
     

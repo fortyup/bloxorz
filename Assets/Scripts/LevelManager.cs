@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using UnityEngine;
 // Import PlayerInput type from the new Input System if available
 using UnityEngine.InputSystem;
+using UnityEngine.SceneManagement;
 
 public class LevelManager : MonoBehaviour
 {
@@ -83,10 +84,8 @@ public class LevelManager : MonoBehaviour
 
                         if (isGoal)
                         {
-                            // Marquage visuel simple : colorer si Renderer présent
-                            var rend = tile.GetComponent<Renderer>();
-                            if (rend != null)
-                                rend.material.color = Color.green;
+                            // Marquage visuel simple : demander à la tuile de mettre à jour son visuel
+                            t.RefreshVisuals();
                         }
 
                         // Enregistrer la tuile (les trous ne sont pas enregistrés)
@@ -133,9 +132,12 @@ public class LevelManager : MonoBehaviour
         var player = GameObject.FindGameObjectWithTag("Player");
         if (player != null)
         {
-            var t = GetTileAtWorldPoint(player.transform.position);
-            if (t != null)
-                return t.coord;
+            // Convertir la position monde du joueur en coordonnées de grille (1x1)
+            // sans dépendre des tiles déjà instanciées, afin d'obtenir la case de départ
+            // avant la génération du niveau.
+            int x = Mathf.FloorToInt(player.transform.position.x + 0.5f);
+            int z = Mathf.FloorToInt(player.transform.position.z + 0.5f);
+            return new Vector2Int(x, z);
         }
 
         // Fallback raisonnable : coin (1,1) — on suppose que la scène contient cette tuile
@@ -368,5 +370,10 @@ public class LevelManager : MonoBehaviour
 
         // Optionnel : stopper le temps de jeu pour geler tout (UI doit utiliser unscaled time si animations)
         Time.timeScale = 0f;
+    }
+
+    public void RestartGame()
+    {
+        SceneManager.LoadScene(SceneManager.GetActiveScene().name);
     }
 }
