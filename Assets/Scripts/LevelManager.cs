@@ -1,15 +1,19 @@
 using System.Collections.Generic;
 using UnityEngine;
+// Import PlayerInput type from the new Input System if available
+using UnityEngine.InputSystem;
 
 public class LevelManager : MonoBehaviour
 {
     public static LevelManager I { get; private set; }
     public GameObject winTextObject;
+    public GameObject loseTextObject;
 
     [SerializeField] private GameObject tilePrefab;
     [SerializeField] private int width = 7;
     [SerializeField] private int depth = 7;
     [SerializeField] private int maxGenerateAttempts = 100;
+    private Vector2Int startCoord;
 
     private List<Tile> tiles = new List<Tile>();
 
@@ -19,12 +23,14 @@ public class LevelManager : MonoBehaviour
     void Awake()
     {
         I = this;
+        startCoord = GetStartCoordFromPlayer();
     }
 
     void Start()
     {
         GenerateLevel();
         winTextObject.SetActive(false);
+        loseTextObject.SetActive(false);
     }
 
     private void GenerateLevel()
@@ -46,8 +52,8 @@ public class LevelManager : MonoBehaviour
             {
                 for (int z = 0; z < depth; z++)
                 {
-                    // éviter qu'une case goal soit un trou
-                    bool isHole = Random.value < holeChance && !(x == goalX && z == goalZ);
+                    // éviter qu'une case goal ou la case de départ soient des trous
+                    bool isHole = Random.value < holeChance && !(x == goalX && z == goalZ) && !(x == startCoord.x && z == startCoord.y);
                     if (isHole)
                     {
                         // Pas d'instance = trou
@@ -89,19 +95,15 @@ public class LevelManager : MonoBehaviour
                 }
             }
 
-            // Déterminer la tuile de départ du joueur si elle existe
-            Vector2Int startCoord = GetStartCoordFromPlayer();
-
             // Vérifier la solvabilité en simulant le bloc (position debout initiale)
             if (IsLevelSolvable(startCoord))
             {
-                // Niveau solvable trouvé
                 return;
             }
             else
             {
                 // Sinon, tenter à nouveau (les tiles instanciés seront détruits en début de boucle)
-                Debug.Log($"Attempt {attempt} produced unsolvable level, regenerating...");
+                Debug.Log($"Attempt {attempt} produced unsolvable level (start={startCoord.x},{startCoord.y} goal={goalX},{goalZ}), regenerating...");
             }
         }
 
@@ -147,7 +149,7 @@ public class LevelManager : MonoBehaviour
         var startTile = GetTileAtCoord(startCoord);
         if (startTile == null) return false;
 
-    // Etat représenté par deux coordonnées (peuvent être égales si debout)
+        // Etat représenté par deux coordonnées (peuvent être égales si debout)
 
         var q = new Queue<State>();
         var visited = new HashSet<string>();
@@ -330,10 +332,23 @@ public class LevelManager : MonoBehaviour
         }
 
         // Désactiver les composants "PlayerInput" (nouveau input system) s'ils existent
-        foreach (var mb in FindObjectsOfType<MonoBehaviour>())
+        // Utiliser la nouvelle API typée pour cibler directement PlayerInput (plus sûr que comparer les noms)
+        try
         {
-            if (mb.GetType().Name == "PlayerInput")
-                mb.enabled = false;
+            foreach (var pi in Object.FindObjectsByType<PlayerInput>(FindObjectsSortMode.None))
+            {
+                if (pi != null)
+                    pi.enabled = false;
+            }
+        }
+        catch (System.Exception)
+        {
+            // Si PlayerInput n'est pas présent/accessible dans ce projet, fall back to reflection-based approach
+            foreach (var mb in Object.FindObjectsByType<MonoBehaviour>(FindObjectsSortMode.None))
+            {
+                if (mb.GetType().Name == "PlayerInput")
+                    mb.enabled = false;
+            }
         }
 
         // Afficher le curseur et le déverrouiller
@@ -343,5 +358,15 @@ public class LevelManager : MonoBehaviour
         // Optionnel : stopper le temps de jeu pour geler tout (UI doit utiliser unscaled time si animations)
         Time.timeScale = 0f;
         winTextObject.gameObject.SetActive(true);
+    }
+
+    // Appelée quand le joueur perd (block partiellement ou totalement dans le vide)
+    public void Lose()
+    {
+        // Afficher le texte de défaite
+        loseTextObject.SetActive(true);
+
+        // Optionnel : stopper le temps de jeu pour geler tout (UI doit utiliser unscaled time si animations)
+        Time.timeScale = 0f;
     }
 }
